@@ -1,0 +1,9 @@
+*.o
+*.elf
+*.bin
+*.map
+NOT*
+nxpsum
+*.bak
+build/**
+.clangd
