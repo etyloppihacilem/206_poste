@@ -24,7 +24,9 @@ SRC_FILES	= $(shell find $(SRC_DIR) -type f -name "*.c")
 SYS_SRCS = LPC1769/startup_LPC17xx.c LPC1769/system_LPC17xx.c
 SYS_SRCS_DIR = LPC1769
 SYS_OBJECTS =
-INCLUDE_PATHS = -I. -I./LPC1769 -I./include
+INCLUDE_PATHS = -I. -I./LPC1769 -I./include -I/usr/lib/gcc/arm-none-eabi/14.1.0/include \
+				-I/usr/lib/gcc/arm-none-eabi/14.1.0/include-fixed \
+				-I/usr/lib/gcc/arm-none-eabi/14.1.0/../../../../arm-none-eabi/include
 LIBRARY_PATHS =
 LIBRARIES =
 LINKER_SCRIPT = ./LPC1769/LPC1769.ld
@@ -64,6 +66,9 @@ flash: all
 
 clangd: # configure clangd for tests
 	bash ./tools/clangd_generator.sh
+
+compile_commands: clean
+	bear -- ${MAKE}
 
 .PHONY: all clean re flash clangd
 
