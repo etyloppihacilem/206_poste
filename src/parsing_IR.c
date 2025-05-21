@@ -69,14 +69,50 @@ void EINT0_IRQHandler(void) {
     LPC_SC->EXTINT |= 0x1;
 }
 
+
+
 void parsing_message(char MESSAGE[], char DECODE[]) {
-    char temp[DECODE_LENGTH + 1] = "";
-    if (MESSAGE[0] != '1' || MESSAGE[1] != '0')
+    char temp[DECODE_LENGTH + 1] = ""; 
+
+    
+    if (MESSAGE[0] != '1' || MESSAGE[1] != '0')  // Vérification du message de début
         return;
 
     uint16_t index_m = 2;
-    uint16_t index_d = 0;
-    while (MESSAGE[index_m] != '\0' && index_m + 2 < MESSAGE_LENGTH) {
+    uint16_t index_d = 0; 
+
+    if (CPT_CHAR < 16) 
+        return;
+
+    // Calcul de la somme des 3 quartets précédents
+    uint8_t sum = 0;
+    for (int i = 0; i < 12; i += 4) {
+        uint8_t quartet = 0;
+        for (int j = 0; j < 4; j++) {
+            if (MESSAGE[index_m + i + j] == '1') {
+                quartet |= (1 << (3 - j)); // Construire le quartet en binaire
+            }
+        }
+        sum += quartet; 
+    }
+
+    // complement a 2
+    uint8_t checksum_expected = (~sum + 1) & 0xF; //limite le resultat a 4bit
+
+    // recupere le checksum du message
+    uint8_t checksum_received = 0;
+    for (int i = 0; i < 4; i++) {
+        if (MESSAGE[index_m + 12 + i] == '1') {
+            checksum_received |= (1 << (3 - i)); 
+        }
+    }
+
+    if (checksum_received != checksum_expected) {
+        return; 
+    }
+
+    // parsing en 1 et 0
+    while (index_m < 14 && MESSAGE[index_m] != '\0') {
         if (MESSAGE[index_m] == '1' && MESSAGE[index_m + 1] == '0' && MESSAGE[index_m + 2] == '0') {
             temp[index_d++] = '0';
             index_m        += 3;
@@ -87,6 +123,7 @@ void parsing_message(char MESSAGE[], char DECODE[]) {
             break;
         }
     }
+
     temp[index_d] = '\0';
     for (int i = 0; i < DECODE_LENGTH + 1; i++)
         DECODE[i] = temp[i];
