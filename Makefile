@@ -70,6 +70,9 @@ clangd: # configure clangd for tests
 compile_commands: clean
 	bear -- ${MAKE}
 
+listen:
+	minicom -b 9600 -o -D /dev/ttyACM0
+
 .PHONY: all clean re flash clangd
 
 ###############################################################################

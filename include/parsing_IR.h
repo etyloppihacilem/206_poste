@@ -1,5 +1,8 @@
 #pragma once
 
-void init_ir(void);
-void parcing_messga(char MESSAGE[], char DECODE[]);
+#include <stdint.h>
 
+void init_ir(void);
+void parsing_message(char MESSAGE[], char DECODE[]);
+
+extern uint8_t message_ready;
