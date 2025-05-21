@@ -11,7 +11,7 @@
 #include "LPC17xx.h"
 #include <stdint.h>
 
-#define MESSAGE_LENGTH 51
+#define MESSAGE_LENGTH 50
 #define DECODE_LENGTH (MESSAGE_LENGTH - 2) / 3
 #define TAU 250e-6
 #define CLK_FREQ 25000000
