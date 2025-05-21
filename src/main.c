@@ -1,10 +1,16 @@
-/* #####################################################################################################################
+#include <LPC17xx.h>
+#include "parsing_IR.c"
+#include "pave_DIP.c"
 
-               """          main.c
-        -\-    _|__
-         |\___/  . \        Created on 18 May. 2025 at 22:42
-         \     /(((/        by hmelica
-          \___/)))/         hmelica@student.42.fr
+int main(void)
+{
+    init_ir();
+    init_matrix();
+    
 
-##################################################################################################################### */
-
+    if (message_ready)
+    {
+        parcing_messga(MESSAGE, DECODE);
+        message_ready = 0;
+    }
+}
