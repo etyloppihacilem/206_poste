@@ -217,7 +217,6 @@ void Reset_Handler(void) {
     //
     // Call the application's entry point.
     //
-    SystemCoreClockUpdate();
     SystemInit();
     main();
 }
