@@ -17,6 +17,7 @@
 #define SIZE_REQUEST 16
 
 uint8_t CPT_REQUEST = 0;
+uint8_t rebond = 0;
 
 void init_matrix(void) {
     LPC_PINCON->PINSEL3 &= ~(0b11111 << 18); // Rows are config in outputs
@@ -24,6 +25,22 @@ void init_matrix(void) {
 
     LPC_GPIO1->FIODIR &= ~(1 << 23 | 1 << 24 | 1 << 25 | 1 << 26);
     LPC_GPIO1->FIODIR |= (0b11111 << 18);
+
+
+    LPC_SC->PCONP |= (1 << 23);             // Activer TIMER3
+    LPC_TIM3->PR   = 0;                     // Pas de prescaler
+    LPC_TIM3->MR0  = 25000000 / 5;          // 200 ms (25 MHz / 5 Hz)
+    LPC_TIM3->MCR  = (1 << 0) | (1 << 1);   // Interruption et reset sur MR0
+    LPC_TIM3->TCR  = (1 << 1);              // Réinitialiser TIMER3
+    LPC_TIM3->TCR  = (1 << 0);              // Activer TIMER3
+
+    NVIC_EnableIRQ(TIMER3_IRQn);            // Activer l'interruption TIMER3
+}
+
+
+void TIMER3_IRQHandler(void) {
+    LPC_TIM3->IR = (1 << 0); // Effacer le drapeau d'interruption
+    rebond = 1;             // Autoriser l'enregistrement de nouvelles touches
 }
 
 uint8_t matrix(uint8_t y) {
@@ -90,36 +107,44 @@ uint8_t parsing_pave(uint8_t y) {
 }
 
 char *register_request(void) {
-    char    request[16] = ""; // Tableau pour stocker les appuis (taille ajustable)
-    static uint8_t index       = 0;  // Index pour suivre la position dans le tableau
+    static char request[SIZE_REQUEST];
+    static uint8_t idx = 0;
+    static char last_key = 0;
 
+    if (!rebond) return NULL;
+
+    char key = 0;
     for (uint8_t row = 0; row < 4; row++) {
-        char key = parsing_pave(row);
+        key = parsing_pave(row);
+        if (key) break;
+    }
 
-        if (key) {
-            if (index == 0 && key != '#')
-                continue;
+    if (!key || key == last_key) return NULL; // Rien ou même touche que la dernière
 
-            if (index < SIZE_REQUEST - 1) // Ajouter la touche si la taille le permet
-                request[index++] = key;
+    last_key = key;
+    rebond = 0;                       // Verrouille la saisie
+    LPC_TIM3->TCR = (1 << 1);        // Reset du timer
+    LPC_TIM3->TCR = (1 << 0);        // Start
 
-            if (key == '*') {
-                request[index] = '\0'; // Terminer la chaîne
+    if (idx == 0 && key != '#') return NULL;
 
-                // Vérifier si la chaîne correspond au format attendu
-                if (request[0] == '#' && index >= 4 && request[index - 1] == '*') {
-                    return request; // Retourner la chaîne complète
-                } else {
-                    // Réinitialiser si le format est incorrect
-                    index      = 0;
-                    request[0] = '\0';
-                }
-            }
+    if (idx < SIZE_REQUEST - 1) request[idx++] = key;
+
+    if (key == '*') {
+        request[idx] = '\0';
+        if (request[0] == '#' && idx >= 5 && request[idx - 1] == '*') {
+            idx = 0;
+            last_key = 0;
+            return request;
+        } else {
+            idx = 0;
+            request[0] = '\0';
         }
     }
 
-    return NULL; // Retourne NULL si la chaîne complète n'est pas encore formée
+    return NULL;
 }
+
 
 uint8_t DIP_switch() {
     char dip_switch[4] = "";
