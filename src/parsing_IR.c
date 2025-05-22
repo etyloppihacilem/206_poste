@@ -31,14 +31,13 @@ void init_ir(void) {
     LPC_PINCON->PINSEL4 &= ~(0b11 << 20); // P2.10 -> GPIO
     LPC_PINCON->PINSEL4 |= (0b01 << 20);  // P2.10 -> EINT0
 
-    LPC_SC->EXTMODE  |= (1 << 0); 
-    LPC_SC->EXTPOLAR |= (1 << 0); 
+    LPC_SC->EXTMODE  |= (1 << 0);
+    LPC_SC->EXTPOLAR |= (1 << 0);
     LPC_SC->EXTINT    = 1;
 
-    LPC_SC->PCONP |= (1 << 1); 
+    LPC_SC->PCONP |= (1 << 1);
     LPC_TIM0->TCR  = (1 << 1); // Réinitialiser TIMER0
     LPC_TIM0->TCR  = (1 << 0); // Démarrer TIMER0
-
 
     NVIC_EnableIRQ(EINT0_IRQn);
 }
@@ -70,7 +69,7 @@ void EINT0_IRQHandler(void) {
     PREVIOUS_EDGE = CURRENT_EDGE;
 }
 
-//-------------------------------------------------------------------
+
 void parsing_message(char *DECODE) {
     char temp[DECODE_LENGTH + 1] = "";
 
