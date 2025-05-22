@@ -29,7 +29,10 @@ int main(void) {
     uint8_t dip_switch_value = DIP_switch();
     printf("Valeur des DIP switches : %d\r\n", dip_switch_value);
 
+    char led_pattern[12] = "101010101010"; // Exemple : LEDs alternées ON/OFF
+
     while (1) {
+        
         char *request = register_request();
 
         if (request != NULL) {
@@ -39,7 +42,7 @@ int main(void) {
             }
         }
 
-        if (dip_switch_value < 16) { // Exemple de plage valide
+        if (dip_switch_value < 16) { 
             playDTMF(dip_switch_value);
         } else {
             printf("Valeur DIP switch invalide : %d\r\n", dip_switch_value);
@@ -50,11 +53,13 @@ int main(void) {
             message_ready = 0;
 
             if (decode_IR[0] != '\0') {
-                disp_LED(decode_IR);
+                //disp_LED(decode_IR);
             } else {
                 printf("decode_IR est vide, rien à afficher sur les LEDs.\r\n");
             }
         }
+        
+        disp_LED(led_pattern);
 
 
     }

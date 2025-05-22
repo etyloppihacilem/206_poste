@@ -20,11 +20,18 @@ void init_display(void) {
     LPC_GPIO0->FIODIR |= (0b11111 << 17);         
 }
 
-void disp_LED(char* DECODE) {
+void disp_LED(char *pattern) {
+    
+    LPC_GPIO0->FIOCLR = (0b1111111 << 4) | (0b11111 << 17);
 
-    for (int i = 0; i < 12; i++)
-        if (DECODE[i] == '1')
-            LPC_GPIO1->FIOSET = (1 << i);
-        else
-            LPC_GPIO1->FIOCLR = (1 << i);
+    // Appliquer le nouveau motif
+    for (int i = 0; i < 12; i++) {
+        if (pattern[i] == '1') {
+            if (i < 7) {
+                LPC_GPIO0->FIOSET = (1 << (4 + i)); // LEDs P0.4 à P0.10
+            } else {
+                LPC_GPIO0->FIOSET = (1 << (17 + (i - 7))); // LEDs P0.17 à P0.21
+            }
+        }
+    }
 }
