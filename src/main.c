@@ -1,5 +1,6 @@
 #include "DTMF.h"
 #include "com_super.h"
+#include "UART_base.h"
 #include "display.h"
 #include "parsing_IR.h"
 #include "pave_DIP.h"
@@ -10,6 +11,9 @@
 #include <stdio.h>
 
 int main(void) {
+    init_com_poste(9600);
+
+
     init_com_super(9600);
     printf("Communication série initialisée.\r\n");
 
@@ -29,7 +33,7 @@ int main(void) {
     uint8_t dip_switch_value = DIP_switch();
     printf("Valeur des DIP switches : %d\r\n", dip_switch_value);
 
-    char led_pattern[12] = "101010101010"; // Exemple : LEDs alternées ON/OFF
+    //char led_pattern[12] = "101010101010"; // Exemple : LEDs alternées ON/OFF
 
     while (1) {
         
@@ -48,18 +52,11 @@ int main(void) {
             printf("Valeur DIP switch invalide : %d\r\n", dip_switch_value);
         }
 
-        if (message_ready) {
-            parsing_message(decode_IR);
-            message_ready = 0;
 
-            if (decode_IR[0] != '\0') {
-                //disp_LED(decode_IR);
-            } else {
-                printf("decode_IR est vide, rien à afficher sur les LEDs.\r\n");
-            }
-        }
+        //disp_LED(decode_IR);
+
         
-        disp_LED(led_pattern);
+        
 
 
     }

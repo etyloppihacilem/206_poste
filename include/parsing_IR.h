@@ -3,6 +3,19 @@
 #include <stdint.h>
 
 void init_ir(void);
-void parsing_message(char *DECODE);
+void poste_msg_done();
 
-extern uint8_t message_ready;
+
+typedef struct {
+    uint8_t ID_rob;
+    uint8_t vitesse;
+    uint8_t status;
+} message_IR;
+
+message_IR *get_poste_msg();
+
+
+
+
+
+
