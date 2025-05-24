@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 void init_ir(void);
-void poste_msg_done();
 
 
 typedef struct {
@@ -12,7 +11,8 @@ typedef struct {
     uint8_t status;
 } message_IR;
 
-message_IR *get_poste_msg();
+message_IR *get_ir_msg();
+void ir_msg_done();
 
 
 

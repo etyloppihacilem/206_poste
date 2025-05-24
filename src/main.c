@@ -1,6 +1,6 @@
 #include "DTMF.h"
-#include "com_super.h"
 #include "UART_base.h"
+#include "com_super.h"
 #include "display.h"
 #include "parsing_IR.h"
 #include "pave_DIP.h"
@@ -11,10 +11,8 @@
 #include <stdio.h>
 
 int main(void) {
-    init_com_poste(9600);
+    init_com_poste(115200);
 
-
-    init_com_super(9600);
     printf("Communication série initialisée.\r\n");
 
     init_ir();
@@ -27,39 +25,35 @@ int main(void) {
     printf("Périphérique DTMF initialisé.\r\n");
 
     init_display();
-    printf("Affichage initialisé.\r\n");
 
-    char decode_IR[16] = "";
     uint8_t dip_switch_value = DIP_switch();
-    printf("Valeur des DIP switches : %d\r\n", dip_switch_value);
 
-    //char led_pattern[12] = "101010101010"; // Exemple : LEDs alternées ON/OFF
+    // char led_pattern[12] = "101010101010"; // Exemple : LEDs alternées ON/OFF
 
     while (1) {
-        
-        char *request = register_request();
 
-        if (request != NULL) {
-            printf("Requête détectée : %s\r\n", request);
-            for (int i = 0; request[i] != '\0'; i++) {
-                printf("Caractère %d : %c (ASCII : %d)\r\n", i, request[i], request[i]);
+        if (msg_base_received) {
+            msg_base_received = 0;
+
+            // Messages IR
+            message_IR *msg_ir;
+            while ((msg_ir = get_ir_msg()) != NULL) {
+                send_msg_IR_to_base(msg_ir);
+                ir_msg_done();
             }
+
+            // Messages Pavé
+            message_pave *msg_pave;
+            while ((msg_pave = get_pave_msg()) != NULL) {
+                send_msg_pave_to_base(msg_pave);
+                ir_pave_msg_done();
+            }
+            base_msg_done();
         }
 
-        if (dip_switch_value < 16) { 
-            playDTMF(dip_switch_value);
-        } else {
-            printf("Valeur DIP switch invalide : %d\r\n", dip_switch_value);
-        }
-
-
-        //disp_LED(decode_IR);
-
-        
-        
-
-
+        playDTMF(dip_switch_value);
     }
 
-    return 0;
+
+return 0;
 }

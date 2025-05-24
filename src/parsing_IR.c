@@ -114,25 +114,24 @@ void EINT0_IRQHandler(void) {
 /*
  * returns message to treat, or NULL
  * */
-message_IR *get_poste_msg() {
-    message_IR *msg;
-    __disable_irq();
+message_IR *get_ir_msg() {
+    message_IR *msg_IR;
+
     if (fifo_ir_r == fifo_ir_w)
-        msg = 0;
+        msg_IR = 0;
     else
-        msg = fifo_ir + fifo_ir_r; // on retourne un pointeur sur le message
-    __enable_irq();
-    return msg;
+        msg_IR = fifo_ir + fifo_ir_r; // on retourne un pointeur sur le message
+
+    return msg_IR;
 }
 
 /*
  * call this when done with processing message.
  * */
-void poste_msg_done() {
-    __disable_irq();
+void ir_msg_done() {
+
     if (fifo_ir_r == LENGTH_FIFO_IR - 1)
         fifo_ir_r = 0;
     else
         fifo_ir_r++;
-    __enable_irq();
 }
