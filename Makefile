@@ -71,7 +71,7 @@ compile_commands: clean
 	bear -- ${MAKE}
 
 listen:
-	minicom -b 9600 -o -D /dev/ttyACM0
+	minicom -b 115200 -o -D /dev/ttyACM0
 
 .PHONY: all clean re flash clangd
 

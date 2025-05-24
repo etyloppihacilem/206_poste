@@ -8,7 +8,6 @@
 #####################################################################################################################
 */
 #include "LPC17xx.h"
-#include "com_super.h"
 #include "sys/_intsup.h"
 #include <stdint.h>
 #include "pave_DIP.h"
