@@ -6,7 +6,7 @@ void    init_matrix(void);
 uint8_t parsing_pave(uint8_t y);
 uint8_t matrix(uint8_t y);
 
-uint8_t DIP_switch();
+void DIP_switch();
 
 typedef struct {
     char ID_post_uni;
@@ -18,3 +18,4 @@ message_pave *get_pave_msg();
 void          ir_pave_msg_done();
 void register_request(void);
 
+extern uint8_t num_poste;

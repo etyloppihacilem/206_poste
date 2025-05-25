@@ -16,16 +16,12 @@
 #include <stdint.h>
 
 #define MSG_LENGTH 32
-#define INBOX_SIZE 4
 
-t_msg_from_base inbox_base[INBOX_SIZE]   = { 0 };
 char            msg_base[MSG_LENGTH + 1] = { 0 };
 
 static uint8_t c_base = 0;
-static uint8_t w_base = 0;
-static uint8_t r_base = 0;
 
-uint8_t poste_num         = 0;
+
 uint8_t msg_base_received = 0;
 
 static void parsing_base_interrogation() {
@@ -37,7 +33,7 @@ static void parsing_base_interrogation() {
     uint8_t poste_cible = parse_nb(msg_base[3], msg_base[2]); // Conversion des caractères en nombre
 
     // Vérifier si le poste cible correspond au poste actuel
-    if (poste_cible == poste_num)
+    if (poste_cible == num_poste)
         msg_base_received = 1; // Indiquer que le message est destiné à ce poste
 }
 
@@ -131,33 +127,15 @@ void enable_base_rx() {
     LPC_UART0->IER |= 1;
 }
 
-/*
- * returns message to treat, or NULL
- * */
-t_msg_from_base *get_base_msg() {
-    t_msg_from_base *msg;
-    disable_base_rx();
-    if (r_base == w_base)
-        msg = 0;
-    else
-        msg = inbox_base + r_base; // on retourne un pointeur sur le message
-    enable_base_rx();
-    return msg;
-}
 
 /*
  * call this when done with processing message.
  * */
 void base_msg_done() {
-    disable_base_rx();
-    if (r_base == INBOX_SIZE - 1)
-        r_base = 0;
-    else
-        r_base++;
-    enable_base_rx();
+    msg_base_received = 0;
 }
 
-static int UART0_putchar(int c) { // peut être bufferiser ça si les prints prennent trop de temps.
+int UART0_putchar(int c) { // peut être bufferiser ça si les prints prennent trop de temps.
     while (!(LPC_UART0->LSR & 0x20))
         ; // attente THRE
     LPC_UART0->THR = c;
@@ -261,9 +239,3 @@ void send_msg_pave_to_base(message_pave *msg) {
 }
 
 
-static int uart0_putchar(int c) { // peut être bufferiser ça si les prints prennent trop de temps.
-    while (!(LPC_UART0->LSR & 0x20))
-        ; // attente THRE
-    LPC_UART0->THR = c;
-    return c;
-}

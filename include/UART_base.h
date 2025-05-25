@@ -9,9 +9,6 @@ typedef enum {
     EOT    = 'N',
 } t_msg_poste_type;
 
-typedef struct {
-        t_msg_poste_type type;
-} t_msg_from_base;
 
 typedef struct {
         t_msg_poste_type type;
@@ -28,6 +25,11 @@ void send_msg_pave_to_base(message_pave *msg);
 void base_msg_done();
 void send_msg_IR_to_base(message_IR *msg);
 void debug_write(const char *str);
+void debug_put_hex(uint32_t n);
+void debug_put_uint(uint32_t n);
+void debug_put_int(int32_t n);
+int UART0_putchar(int c);
+
 
 typedef enum {
     ir_dispo       = 0x8,
