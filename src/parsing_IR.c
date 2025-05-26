@@ -1,137 +1,151 @@
-/* #####################################################################################################################
-
-        _   ,_,   _         parsing_IR.c
-       / `'=) (='` \        Created on 18 May. 2025 at 15:09
-      /.-.-.\ /.-.-.\       by Amaury Jacob
-      `      "      `
-
-#####################################################################################################################
-*/
-
 #include "parsing_IR.h"
 #include "LPC17xx.h"
-#include "core_cmFunc.h"
+#include "UART_base.h"
 #include <stdint.h>
 
+/* ---------------- DEBUG CONFIG ---------------- */
+#define DEBUG_IR 1
+#define DEBUG_LED 1
+#define LED_PORT LPC_GPIO0
+#define LED_PIN 22
+
+#if DEBUG_IR
+# define TRACE_CHAR(c) UART0_putchar(c)
+# define TRACE_STR(s) debug_write(s)
+# define TRACE_UINT(u) debug_put_uint(u)
+#else
+# define TRACE_CHAR(c) ((void) 0)
+# define TRACE_STR(s) ((void) 0)
+# define TRACE_UINT(u) ((void) 0)
+#endif
+
+
+#define TAU_US 250UL //250 µs 
+
+
 #define MESSAGE_LENGTH 50
-#define DECODE_LENGTH ((MESSAGE_LENGTH - 2) / 3)
-
-#define TAU_TICKS 6250UL       // 250 µs × 25 MHz
-#define BURST_MAX_TICKS 1500UL // 60 µs × 25 MHz
-
 #define LENGTH_FIFO_IR 16
 
-uint8_t  CPT_PULSE     = 0;
-uint32_t CURRENT_EDGE  = 0;
-uint32_t PREVIOUS_EDGE = 0;
 
-char    MESSAGE[MESSAGE_LENGTH] = "";
-uint8_t CPT_CHAR                = 0;
+static char    MESSAGE[MESSAGE_LENGTH] = { 0 };
+static uint8_t MSG_IDX                 = 0;
 
-message_IR fifo_ir[LENGTH_FIFO_IR];
-uint8_t    fifo_ir_r = 0;
-uint8_t    fifo_ir_w = 0;
+static uint32_t lt_us = 0; 
+static uint32_t tc_us = 0; 
 
-static void parsing_message() {
-    uint16_t ir_decode = 0;
+static message_IR fifo_ir[LENGTH_FIFO_IR];
+static uint8_t    fifo_ir_r = 0, fifo_ir_w = 0;
 
-    if (MESSAGE[0] != '1' || MESSAGE[1] != '0')
+
+
+static void parsing_message(void) {
+    if (MSG_IDX < 16 || MESSAGE[0] != '1' || MESSAGE[1] != '0')
         return;
 
-    if (CPT_CHAR < 16)
-        return;
-
-    uint16_t index_m = 2;
-
-    while (MESSAGE[index_m] != '\0' && index_m + 2 < CPT_CHAR) {
-        if (MESSAGE[index_m] == '1' && MESSAGE[index_m + 1] == '0' && MESSAGE[index_m + 2] == '0') {
-            ir_decode = ir_decode << 1;
-            index_m  += 3;
-        } else if (MESSAGE[index_m] == '1' && MESSAGE[index_m + 1] == '1' && MESSAGE[index_m + 2] == '0') {
-            ir_decode = ir_decode << 1 | 1;
-            index_m  += 3;
-        } else {
-            break;
-        }
-    }
-    CPT_CHAR = 0;
-
-    fifo_ir[fifo_ir_w].ID_rob  = (ir_decode & 0xf << 12) >> 12;
-    fifo_ir[fifo_ir_w].vitesse = (ir_decode & 0xf << 8) >> 8;
-    fifo_ir[fifo_ir_w].status  = (ir_decode & 0xf << 4) >> 4;
-
-    if (((~(fifo_ir[fifo_ir_w].ID_rob + fifo_ir[fifo_ir_w].vitesse + fifo_ir[fifo_ir_w].status) + 1) & 0xf)
-        == (ir_decode & 0xf)) {
-        if (fifo_ir_w >= LENGTH_FIFO_IR - 1)
-            fifo_ir_w = 0;
+    uint16_t ir = 0;
+    for (uint8_t i = 2; i + 2 < MSG_IDX; i += 3)
+        if (MESSAGE[i] == '1' && MESSAGE[i + 1] == '0' && MESSAGE[i + 2] == '0')
+            ir <<= 1;
+        else if (MESSAGE[i] == '1' && MESSAGE[i + 1] == '1' && MESSAGE[i + 2] == '0')
+            ir = (ir << 1) | 1;
         else
-            fifo_ir_w++;
+            break;
+
+    uint8_t id  = (ir >> 12) & 0xF;
+    uint8_t vel = (ir >> 8) & 0xF;
+    uint8_t st  = (ir >> 4) & 0xF;
+    uint8_t chk = ir & 0xF;
+
+    if ((uint8_t) (~(id + vel + st) + 1) != chk) {
+        TRACE_STR("CHK ERR\r\n");
+        MSG_IDX    = 0;
+        MESSAGE[0] = '\0';
+        return;
     }
-    return;
+
+    fifo_ir[fifo_ir_w].ID_rob  = id;
+    fifo_ir[fifo_ir_w].vitesse = vel;
+    fifo_ir[fifo_ir_w].status  = st;
+    fifo_ir_w                  = (fifo_ir_w + 1) % LENGTH_FIFO_IR;
+
+    TRACE_STR("\r\n→ IR FIFO  ID=");
+    TRACE_UINT(id);
+    TRACE_STR(" V=");
+    TRACE_UINT(vel);
+    TRACE_STR(" S=");
+    TRACE_UINT(st);
+    TRACE_STR("\r\n");
+
+    MSG_IDX    = 0;
+    MESSAGE[0] = '\0';
+}
+
+static inline void push_bit(char b) {
+    if (MSG_IDX < MESSAGE_LENGTH - 1) {
+        MESSAGE[MSG_IDX++] = b;
+        MESSAGE[MSG_IDX]   = '\0';
+        TRACE_CHAR(b); /* “0” ou “1” en live */
+    } else {
+        MSG_IDX = 0;
+    }
+    parsing_message();
 }
 
 void init_ir(void) {
-    LPC_PINCON->PINSEL4 &= ~(0b11 << 20); // P2.10 -> GPIO
-    LPC_PINCON->PINSEL4 |= (0b01 << 20);  // P2.10 -> EINT0
+    LPC_PINCON->PINSEL4 &= ~(3 << 20);
+    LPC_PINCON->PINSEL4 |= (1 << 20); // intéruption p2.10 en rising edge
+    LPC_SC->EXTMODE     |= 1;
+    LPC_SC->EXTPOLAR    |= 1;
+    LPC_SC->EXTINT       = 1;
 
-    LPC_SC->EXTMODE  |= (1 << 0);
-    LPC_SC->EXTPOLAR |= (1 << 0);
-    LPC_SC->EXTINT    = 1;
+#if DEBUG_LED
+    LED_PORT->FIODIR |= (1 << LED_PIN);
+#endif
 
+    /* Timer0 libre‑courant : 1 µs par tick ------------------------ */
     LPC_SC->PCONP |= (1 << 1);
-    LPC_TIM0->TCR  = (1 << 1); // Réinitialiser TIMER0
-    LPC_TIM0->TCR  = (1 << 0); // Démarrer TIMER0
+    LPC_TIM0->PR   = 24; /* 24 pour 25 MHz CPU          */
+    LPC_TIM0->TCR  = 2;  /* reset TC & PC               */
+    LPC_TIM0->TCR  = 1;  /* start                       */
 
     NVIC_EnableIRQ(EINT0_IRQn);
 }
 
 void EINT0_IRQHandler(void) {
-    LPC_SC->EXTINT = 0x1;          // ACK
-    CURRENT_EDGE   = LPC_TIM0->TC; // ticks
+    LPC_SC->EXTINT = 1; // leve le flag
 
-    uint32_t diff_ticks = CURRENT_EDGE - PREVIOUS_EDGE;
+#if DEBUG_LED
+    LED_PORT->FIOPIN ^= (1 << LED_PIN);
+#endif
 
-    if (diff_ticks < BURST_MAX_TICKS) { // burst "1"
-        if (++CPT_PULSE == 8) {
-            CPT_PULSE = 0;
-            if (CPT_CHAR < MESSAGE_LENGTH - 1)
-                MESSAGE[CPT_CHAR++] = '1';
+    uint32_t now_us = LPC_TIM0->TC; // temps actuel
+
+    if ((lt_us - now_us) >= TAU_US) {
+
+        uint8_t bit0 = (uint8_t) ((now_us - lt_us) / TAU_US);
+        uint8_t bit1 = (uint8_t) (lt_us / TAU_US);
+
+
+        while(bit1--)
+        {
+            push_bit('1');
         }
-    } else { // espace "0"
-        CPT_PULSE   = 0;
-        uint8_t NB0 = diff_ticks / TAU_TICKS; // nombre de "0"
-        for (uint8_t i = 0; i < NB0 && CPT_CHAR < MESSAGE_LENGTH - 1; i++)
-            MESSAGE[CPT_CHAR++] = '0';
+
+        while (bit0--) {
+            push_bit('0');
+        }
+
+        LPC_TIM0->TCR = 2; // reset tc et lt
+        LPC_TIM0->TCR = 1;
+        lt_us         = 0;
     }
-
-    if (CPT_CHAR >= MESSAGE_LENGTH - 1)
-        MESSAGE[CPT_CHAR] = '\0';
-
-    PREVIOUS_EDGE = CURRENT_EDGE;
-    parsing_message();
+    lt_us           = now_us;
 }
 
-/*
- * returns message to treat, or NULL
- * */
-message_IR *get_ir_msg() {
-    message_IR *msg_IR;
-
-    if (fifo_ir_r == fifo_ir_w)
-        msg_IR = 0;
-    else
-        msg_IR = fifo_ir + fifo_ir_r; // on retourne un pointeur sur le message
-
-    return msg_IR;
+message_IR *get_ir_msg(void) {
+    return (fifo_ir_r == fifo_ir_w) ? 0 : &fifo_ir[fifo_ir_r];
 }
 
-/*
- * call this when done with processing message.
- * */
-void ir_msg_done() {
-
-    if (fifo_ir_r == LENGTH_FIFO_IR - 1)
-        fifo_ir_r = 0;
-    else
-        fifo_ir_r++;
+void ir_msg_done(void) {
+    fifo_ir_r = (fifo_ir_r + 1) % LENGTH_FIFO_IR;
 }

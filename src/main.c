@@ -8,32 +8,42 @@
 #include <LPC17xx.h>
 #include <stdint.h>
 
-
 int main(void) {
+    /* 1. UART debug ------------------------------------------------ */
     init_com_poste(115200);
     debug_write("coucou\r\n");
-    // init_ir();
+
+    /* 2. Matrice clavier + DIP ------------------------------------ */
     init_matrix();
-    // init_dtmf_peripheral();
-    // init_display();
     DIP_switch();
-    // char led_pattern[12] = "101010101010"; // Exemple : LEDs alternées ON/OFF
 
-    // TODO: CHANGER LES PINS ET LA CLOCK POUR UART1 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    /* 3.  >>>  IR  <<<  — indispensable ---------------------------- */
+    init_ir(); // ← décommente cette ligne
 
+    /* 4. (optionnel) activer globalement les IRQ si elles sont off  */
+    __enable_irq(); // CMSIS ; la plupart des boot-code l’ont déjà fait
+
+    /* 5. Boucle principale ---------------------------------------- */
     while (1) {
-        /* → ajoute cette ligne */
-        register_request();      //<– scanne le pavé à chaque tour
+        /* clavier */
+        register_request();
 
-        /* traitement des messages vers la base */
+        /* messages IR */
+        message_IR *msg_ir;
+        while ((msg_ir = get_ir_msg()) != 0) {
+            send_msg_IR_to_base(msg_ir);
+            debug_write("TX: ID=");  debug_put_uint(msg_ir->ID_rob);
+            debug_write(" V=");      debug_put_uint(msg_ir->vitesse);
+            debug_write(" S=");      debug_put_uint(msg_ir->status);
+            debug_write("\r\n");
+            ir_msg_done();
+        }
+
+        /* messages pavé */
         message_pave *msg_pave;
         while ((msg_pave = get_pave_msg()) != 0) {
             send_msg_pave_to_base(msg_pave);
             ir_pave_msg_done();
         }
-        
     }
-
-
-return 0;
 }
