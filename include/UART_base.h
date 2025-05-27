@@ -17,7 +17,7 @@ typedef struct {
         char             statut;   // statut du robot
 } t_msg_from_robot;
 
-extern uint8_t msg_base_received;
+extern volatile uint8_t msg_base_received;
 
 void init_com_poste(uint32_t baudrate);
 void send_msg_to_base();
@@ -28,7 +28,7 @@ void debug_write(const char *str);
 void debug_put_hex(uint32_t n);
 void debug_put_uint(uint32_t n);
 void debug_put_int(int32_t n);
-int UART0_putchar(int c);
+int UART1_putchar(int c);
 
 
 typedef enum {

@@ -154,7 +154,10 @@ void register_request(void) {
             FIFO_pave[FIFO_w].ID_post_uni = request[2];
             FIFO_pave[FIFO_w].livreur     = request[3];
 
-            FIFO_w = (FIFO_w + 1) % LENGTH_FIFO_PAVE;
+            if (FIFO_w >= LENGTH_FIFO_PAVE - 1)
+                FIFO_w = 0;
+            else
+                FIFO_w++;
         }
         idx = 0; 
     }
